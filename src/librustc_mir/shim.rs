@@ -123,6 +123,8 @@ fn make_shim<'tcx>(tcx: TyCtxt<'tcx>, instance: ty::InstanceDef<'tcx>) -> &'tcx 
         &add_call_guards::CriticalCallEdges,
     ]);
 
+    result.ensure_predecessors();
+
     debug!("make_shim({:?}) = {:?}", instance, result);
 
     tcx.arena.alloc(result)
@@ -913,7 +915,7 @@ pub fn build_adt_ctor(tcx: TyCtxt<'_>, ctor_id: DefId) -> &Body<'_> {
         is_cleanup: false
     };
 
-    let body = Body::new(
+    let mut body = Body::new(
         IndexVec::from_elem_n(start_block, 1),
         IndexVec::from_elem_n(
             SourceScopeData { span: span, parent_scope: None }, 1
@@ -927,6 +929,7 @@ pub fn build_adt_ctor(tcx: TyCtxt<'_>, ctor_id: DefId) -> &Body<'_> {
         span,
         vec![],
     );
+    body.ensure_predecessors();
 
     crate::util::dump_mir(
         tcx,
