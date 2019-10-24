@@ -50,7 +50,7 @@ impl<'a, 'tcx> MirBorrowckCtxt<'a, 'tcx> {
                 if access_place.as_local().is_some() {
                     reason = ", as it is not declared as mutable".to_string();
                 } else {
-                    let name = self.body.local_decls[*local]
+                    let name = self.body_cache.local_decls[*local]
                         .name
                         .expect("immutable unnamed local");
                     reason = format!(", as `{}` is not declared as mutable", name);
@@ -62,7 +62,7 @@ impl<'a, 'tcx> MirBorrowckCtxt<'a, 'tcx> {
                 projection: [proj_base @ .., ProjectionElem::Field(upvar_index, _)],
             } => {
                 debug_assert!(is_closure_or_generator(
-                    Place::ty_from(&the_place_err.base, proj_base, self.body, self.infcx.tcx).ty
+                    Place::ty_from(&the_place_err.base, proj_base, self.body_cache.body(), self.infcx.tcx).ty
                 ));
 
                 item_msg = format!("`{}`", access_place_desc.unwrap());
@@ -107,12 +107,12 @@ impl<'a, 'tcx> MirBorrowckCtxt<'a, 'tcx> {
                     proj_base.is_empty() &&
                     !self.upvars.is_empty() {
                     item_msg = format!("`{}`", access_place_desc.unwrap());
-                    debug_assert!(self.body.local_decls[Local::new(1)].ty.is_region_ptr());
+                    debug_assert!(self.body_cache.local_decls[Local::new(1)].ty.is_region_ptr());
                     debug_assert!(is_closure_or_generator(
                         Place::ty_from(
                             the_place_err.base,
                             the_place_err.projection,
-                            self.body,
+                            self.body_cache.body(),
                             self.infcx.tcx
                         )
                         .ty
@@ -226,7 +226,7 @@ impl<'a, 'tcx> MirBorrowckCtxt<'a, 'tcx> {
 
                 if let Some((span, message)) = annotate_struct_field(
                     self.infcx.tcx,
-                    Place::ty_from(base, proj_base, self.body, self.infcx.tcx).ty,
+                    Place::ty_from(base, proj_base, self.body_cache.body(), self.infcx.tcx).ty,
                     field,
                 ) {
                     err.span_suggestion(
@@ -243,7 +243,7 @@ impl<'a, 'tcx> MirBorrowckCtxt<'a, 'tcx> {
                 base: PlaceBase::Local(local),
                 projection: [],
             } if {
-                self.body.local_decls.get(*local).map(|local_decl| {
+                self.body_cache.local_decls.get(*local).map(|local_decl| {
                     if let LocalInfo::User(ClearCrossCrate::Set(
                         mir::BindingForm::ImplicitSelf(kind)
                     )) = local_decl.local_info {
@@ -278,12 +278,12 @@ impl<'a, 'tcx> MirBorrowckCtxt<'a, 'tcx> {
             PlaceRef {
                 base: PlaceBase::Local(local),
                 projection: [],
-            } if self.body.local_decls[*local].can_be_made_mutable() => {
+            } if self.body_cache.local_decls[*local].can_be_made_mutable() => {
                 // ... but it doesn't make sense to suggest it on
                 // variables that are `ref x`, `ref mut x`, `&self`,
                 // or `&mut self` (such variables are simply not
                 // mutable).
-                let local_decl = &self.body.local_decls[*local];
+                let local_decl = &self.body_cache.local_decls[*local];
                 assert_eq!(local_decl.mutability, Mutability::Not);
 
                 err.span_label(span, format!("cannot {ACT}", ACT = act));
@@ -301,7 +301,7 @@ impl<'a, 'tcx> MirBorrowckCtxt<'a, 'tcx> {
                 projection: [proj_base @ .., ProjectionElem::Field(upvar_index, _)],
             } => {
                 debug_assert!(is_closure_or_generator(
-                    Place::ty_from(base, proj_base, self.body, self.infcx.tcx).ty
+                    Place::ty_from(base, proj_base, self.body_cache.body(), self.infcx.tcx).ty
                 ));
 
                 err.span_label(span, format!("cannot {ACT}", ACT = act));
@@ -347,7 +347,7 @@ impl<'a, 'tcx> MirBorrowckCtxt<'a, 'tcx> {
             PlaceRef {
                 base: PlaceBase::Local(local),
                 projection: [ProjectionElem::Deref],
-            } if self.body.local_decls[*local].is_ref_for_guard() => {
+            } if self.body_cache.local_decls[*local].is_ref_for_guard() => {
                 err.span_label(span, format!("cannot {ACT}", ACT = act));
                 err.note(
                     "variables bound in patterns are immutable until the end of the pattern guard",
@@ -364,7 +364,7 @@ impl<'a, 'tcx> MirBorrowckCtxt<'a, 'tcx> {
                 projection: [ProjectionElem::Deref],
             } if self.body.local_decls[*local].is_user_variable() =>
             {
-                let local_decl = &self.body.local_decls[*local];
+                let local_decl = &self.body_cache.local_decls[*local];
                 let suggestion = match local_decl.local_info {
                     LocalInfo::User(ClearCrossCrate::Set(mir::BindingForm::ImplicitSelf(_))) => {
                         Some(suggest_ampmut_self(self.infcx.tcx, local_decl))
@@ -378,7 +378,7 @@ impl<'a, 'tcx> MirBorrowckCtxt<'a, 'tcx> {
                         },
                     ))) => Some(suggest_ampmut(
                         self.infcx.tcx,
-                        self.body,
+                        &self.body_cache,
                         *local,
                         local_decl,
                         opt_ty_info,
@@ -452,7 +452,7 @@ impl<'a, 'tcx> MirBorrowckCtxt<'a, 'tcx> {
             {
                 err.span_label(span, format!("cannot {ACT}", ACT = act));
                 err.span_help(
-                    self.body.span,
+                    self.body_cache.span,
                     "consider changing this to accept closures that implement `FnMut`"
                 );
             }
