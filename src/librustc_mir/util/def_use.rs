@@ -1,6 +1,6 @@
 //! Def-use analysis.
 
-use rustc::mir::{Body, Local, Location, PlaceElem};
+use rustc::mir::{Body, BodyCache, Local, Location, PlaceElem, ReadOnlyBodyCache};
 use rustc::mir::visit::{PlaceContext, MutVisitor, Visitor};
 use rustc::ty::TyCtxt;
 use rustc_index::vec::IndexVec;
@@ -28,13 +28,13 @@ impl DefUseAnalysis {
         }
     }
 
-    pub fn analyze(&mut self, body: &Body<'_>) {
+    pub fn analyze(&mut self, body_cache: &ReadOnlyBodyCache<'_, '_>) {
         self.clear();
 
         let mut finder = DefUseFinder {
             info: mem::take(&mut self.info),
         };
-        finder.visit_body(body);
+        finder.visit_body(body_cache);
         self.info = finder.info
     }
 
@@ -51,23 +51,23 @@ impl DefUseAnalysis {
     fn mutate_defs_and_uses(
         &self,
         local: Local,
-        body: &mut Body<'tcx>,
+        body_cache: &mut BodyCache<&mut Body<'tcx>>,
         new_local: Local,
         tcx: TyCtxt<'tcx>,
     ) {
         for place_use in &self.info[local].defs_and_uses {
-            MutateUseVisitor::new(local, new_local, body, tcx)
-                .visit_location(body, place_use.location)
+            MutateUseVisitor::new(local, new_local, tcx)
+                .visit_location(body_cache, place_use.location)
         }
     }
 
     // FIXME(pcwalton): this should update the def-use chains.
     pub fn replace_all_defs_and_uses_with(&self,
                                           local: Local,
-                                          body: &mut Body<'tcx>,
+                                          body_cache: &mut BodyCache<&mut Body<'tcx>>,
                                           new_local: Local,
                                           tcx: TyCtxt<'tcx>) {
-        self.mutate_defs_and_uses(local, body, new_local, tcx)
+        self.mutate_defs_and_uses(local, body_cache, new_local, tcx)
     }
 }
 
@@ -131,7 +131,6 @@ impl MutateUseVisitor<'tcx> {
     fn new(
         query: Local,
         new_local: Local,
-        _: &Body<'tcx>,
         tcx: TyCtxt<'tcx>,
     ) -> MutateUseVisitor<'tcx> {
         MutateUseVisitor { query, new_local, tcx }
