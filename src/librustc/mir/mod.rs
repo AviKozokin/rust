@@ -111,7 +111,7 @@ pub struct Body<'tcx> {
     pub yield_ty: Option<Ty<'tcx>>,
 
     /// Generator drop glue.
-    pub generator_drop: Option<Box<Body<'tcx>>>,
+    pub generator_drop: Option<Box<BodyCache<'tcx>>>,
 
     /// The layout of a generator. Produced by the state transformation.
     pub generator_layout: Option<GeneratorLayout<'tcx>>,
@@ -2599,7 +2599,7 @@ impl Location {
     pub fn is_predecessor_of<'tcx>(
         &self,
         other: Location,
-        body_cache: &ReadOnlyBodyCache<'_, 'tcx>
+        body_cache: ReadOnlyBodyCache<'_, 'tcx>
     ) -> bool {
         // If we are in the same block as the other location and are an earlier statement
         // then we are a predecessor of `other`.
