@@ -1064,12 +1064,14 @@ impl<'a, 'tcx> CrateMetadata {
     }
 
     fn get_optimized_mir(&self, tcx: TyCtxt<'tcx>, id: DefIndex) -> BodyCache<'tcx> {
-        self.root.per_def.mir.get(self, id)
+        let mut cache = self.root.per_def.mir.get(self, id)
             .filter(|_| !self.is_proc_macro(id))
             .unwrap_or_else(|| {
                 bug!("get_optimized_mir: missing MIR for `{:?}`", self.local_def_id(id))
             })
-            .decode((self, tcx))
+            .decode((self, tcx));
+        cache.ensure_predecessors();
+        cache
     }
 
     fn get_promoted_mir(
@@ -1077,12 +1079,16 @@ impl<'a, 'tcx> CrateMetadata {
         tcx: TyCtxt<'tcx>,
         id: DefIndex,
     ) -> IndexVec<Promoted, BodyCache<'tcx>> {
-        self.root.per_def.promoted_mir.get(self, id)
+        let mut cache = self.root.per_def.promoted_mir.get(self, id)
             .filter(|_| !self.is_proc_macro(id))
             .unwrap_or_else(|| {
                 bug!("get_promoted_mir: missing MIR for `{:?}`", self.local_def_id(id))
             })
-            .decode((self, tcx))
+            .decode((self, tcx));
+        for body_cache in cache.iter_mut() {
+            body_cache.ensure_predecessors();
+        }
+        cache
     }
 
     fn mir_const_qualif(&self, id: DefIndex) -> mir::ConstQualifs {
