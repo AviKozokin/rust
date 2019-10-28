@@ -870,7 +870,9 @@ fn insert_switch<'tcx>(
     }
 }
 
-fn elaborate_generator_drops<'tcx>(tcx: TyCtxt<'tcx>, def_id: DefId, body_cache: &mut BodyCache<'tcx>) {
+fn elaborate_generator_drops<'tcx>(
+    tcx: TyCtxt<'tcx>, def_id: DefId, body_cache: &mut BodyCache<'tcx>
+) {
     use crate::util::elaborate_drops::{elaborate_drop, Unwind};
     use crate::util::patch::MirPatch;
     use crate::shim::DropShimElaborator;
@@ -1007,7 +1009,9 @@ fn create_generator_drop_shim<'tcx>(
     body_cache
 }
 
-fn insert_term_block<'tcx>(body_cache: &mut BodyCache<'tcx>, kind: TerminatorKind<'tcx>) -> BasicBlock {
+fn insert_term_block<'tcx>(
+    body_cache: &mut BodyCache<'tcx>, kind: TerminatorKind<'tcx>
+) -> BasicBlock {
     let term_block = BasicBlock::new(body_cache.basic_blocks().len());
     let source_info = source_info(body_cache);
     body_cache.basic_blocks_mut().push(BasicBlockData {
@@ -1171,7 +1175,9 @@ where
 }
 
 impl<'tcx> MirPass<'tcx> for StateTransform {
-    fn run_pass(&self, tcx: TyCtxt<'tcx>, source: MirSource<'tcx>, body_cache: &mut BodyCache<'tcx>) {
+    fn run_pass(
+        &self, tcx: TyCtxt<'tcx>, source: MirSource<'tcx>, body_cache: &mut BodyCache<'tcx>
+    ) {
         let yield_ty = if let Some(yield_ty) = body_cache.yield_ty {
             yield_ty
         } else {

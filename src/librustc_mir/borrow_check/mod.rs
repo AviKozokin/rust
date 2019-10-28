@@ -154,7 +154,10 @@ fn do_mir_borrowck<'a, 'tcx>(
     let free_regions =
         nll::replace_regions_in_mir(infcx, def_id, param_env, &mut body_cache, &mut promoted);
     let body_cache = read_only!(body_cache); // no further changes
-    let promoted: IndexVec<_, _> = promoted.iter_mut().map(|body_cache| read_only!(body_cache)).collect();
+    let promoted: IndexVec<_, _> = promoted
+        .iter_mut()
+        .map(|body_cache| read_only!(body_cache))
+        .collect();
 
     let location_table = &LocationTable::new(&body_cache);
 
@@ -287,12 +290,13 @@ fn do_mir_borrowck<'a, 'tcx>(
         let mut initial_diag =
             mbcx.report_conflicting_borrow(location, (&place, span), bk, &borrow);
 
-        let lint_root = if let ClearCrossCrate::Set(ref vsi) = mbcx.body_cache.source_scope_local_data {
-            let scope = mbcx.body_cache.source_info(location).scope;
-            vsi[scope].lint_root
-        } else {
-            id
-        };
+        let lint_root
+            = if let ClearCrossCrate::Set(ref vsi) = mbcx.body_cache.source_scope_local_data {
+                let scope = mbcx.body_cache.source_info(location).scope;
+                vsi[scope].lint_root
+            } else {
+                id
+            };
 
         // Span and message don't matter; we overwrite them below anyway
         let mut diag = mbcx.infcx.tcx.struct_span_lint_hir(
@@ -324,7 +328,8 @@ fn do_mir_borrowck<'a, 'tcx>(
 
     debug!("mbcx.used_mut: {:?}", mbcx.used_mut);
     let used_mut = mbcx.used_mut;
-    for local in mbcx.body_cache.mut_vars_and_args_iter().filter(|local| !used_mut.contains(local)) {
+    for local in mbcx.body_cache.mut_vars_and_args_iter().filter(|local| !used_mut.contains(local))
+    {
         if let ClearCrossCrate::Set(ref vsi) = mbcx.body_cache.source_scope_local_data {
             let local_decl = &mbcx.body_cache.local_decls[local];
 
