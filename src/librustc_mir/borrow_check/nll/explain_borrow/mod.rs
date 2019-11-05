@@ -295,7 +295,7 @@ impl<'cx, 'tcx> MirBorrowckCtxt<'cx, 'tcx> {
                     let (category, from_closure, span, region_name) =
                         self.nonlexical_regioncx.free_region_constraint_info(
                             &self.body_cache,
-                        &self.upvars,
+                            &self.upvars,
                             self.mir_def_id,
                             self.infcx,
                             borrow_region_vid,
