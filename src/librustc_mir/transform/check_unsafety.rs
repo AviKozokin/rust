@@ -514,9 +514,9 @@ fn unsafety_check_result(tcx: TyCtxt<'_>, def_id: DefId) -> UnsafetyCheckResult 
 
     // N.B., this borrow is valid because all the consumers of
     // `mir_built` force this.
-    let body_cache = &tcx.mir_built(def_id).borrow();
+    let body = &tcx.mir_built(def_id).borrow();
 
-    let source_scope_local_data = match body_cache.source_scope_local_data {
+    let source_scope_local_data = match body.source_scope_local_data {
         ClearCrossCrate::Set(ref data) => data,
         ClearCrossCrate::Clear => {
             debug!("unsafety_violations: {:?} - remote, skipping", def_id);
@@ -538,9 +538,9 @@ fn unsafety_check_result(tcx: TyCtxt<'_>, def_id: DefId) -> UnsafetyCheckResult 
     };
     let mut checker = UnsafetyChecker::new(
         const_context, min_const_fn,
-        body_cache, source_scope_local_data, tcx, param_env);
-    let mut cache = body_cache.cache().clone();
-    let read_only_cache = ReadOnlyBodyCache::from_external_cache(&mut cache, body_cache);
+        body, source_scope_local_data, tcx, param_env);
+    let mut cache = body.cache().clone();
+    let read_only_cache = ReadOnlyBodyCache::from_external_cache(&mut cache, body);
     checker.visit_body(read_only_cache);
 
     check_unused_unsafe(tcx, def_id, &checker.used_unsafe, &mut checker.inherited_blocks);
