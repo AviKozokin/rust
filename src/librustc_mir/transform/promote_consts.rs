@@ -44,11 +44,11 @@ use crate::transform::check_consts::{qualifs, Item, ConstKind, is_lang_panic_fn}
 /// newly created `StaticKind::Promoted`.
 #[derive(Default)]
 pub struct PromoteTemps<'tcx> {
-    pub promoted_fragments: Cell<IndexVec<Promoted, Body<'tcx>>>,
+    pub promoted_fragments: Cell<IndexVec<Promoted, BodyCache<'tcx>>>,
 }
 
 impl<'tcx> MirPass<'tcx> for PromoteTemps<'tcx> {
-    fn run_pass(&self, tcx: TyCtxt<'tcx>, src: MirSource<'tcx>, body: &mut Body<'tcx>) {
+    fn run_pass(&self, tcx: TyCtxt<'tcx>, src: MirSource<'tcx>, body: &mut BodyCache<'tcx>) {
         // There's not really any point in promoting errorful MIR.
         //
         // This does not include MIR that failed const-checking, which we still try to promote.
@@ -1192,7 +1192,7 @@ fn should_create_promoted_mir_fragments(const_kind: Option<ConstKind>) -> bool {
 /// just remove `Drop` and `StorageDead` on "promoted" locals.
 fn remove_drop_and_storage_dead_on_promoted_locals(
     tcx: TyCtxt<'tcx>,
-    body: &mut Body<'tcx>,
+    body: &mut BodyCache<'tcx>,
     promotable_candidates: &[Candidate],
 ) {
     debug!("run_pass: promotable_candidates={:?}", promotable_candidates);
