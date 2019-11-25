@@ -366,7 +366,7 @@ impl<'tcx> Validator<'_, 'tcx> {
                                 let ty = Place::ty_from(
                                         &place.base,
                                         proj_base,
-                                        self.body.body(),
+                                        &*self.body,
                                         self.tcx
                                     )
                                     .projection_ty(self.tcx, elem)
@@ -389,7 +389,7 @@ impl<'tcx> Validator<'_, 'tcx> {
                         }
 
                         if let BorrowKind::Mut { .. } = kind {
-                            let ty = place.ty(self.body.body(), self.tcx).ty;
+                            let ty = place.ty(&*self.body, self.tcx).ty;
 
                             // In theory, any zero-sized value could be borrowed
                             // mutably without consequences. However, only &mut []
@@ -538,7 +538,7 @@ impl<'tcx> Validator<'_, 'tcx> {
                     ProjectionElem::Field(..) => {
                         if self.const_kind.is_none() {
                             let base_ty =
-                                Place::ty_from(place.base, proj_base, self.body.body(), self.tcx).ty;
+                                Place::ty_from(place.base, proj_base, &*self.body, self.tcx).ty;
                             if let Some(def) = base_ty.ty_adt_def() {
                                 // No promotion of union field accesses.
                                 if def.is_union() {
@@ -587,7 +587,7 @@ impl<'tcx> Validator<'_, 'tcx> {
     fn validate_rvalue(&self, rvalue: &Rvalue<'tcx>) -> Result<(), Unpromotable> {
         match *rvalue {
             Rvalue::Cast(CastKind::Misc, ref operand, cast_ty) if self.const_kind.is_none() => {
-                let operand_ty = operand.ty(self.body.body(), self.tcx);
+                let operand_ty = operand.ty(&*self.body, self.tcx);
                 let cast_in = CastTy::from_ty(operand_ty).expect("bad input type for cast");
                 let cast_out = CastTy::from_ty(cast_ty).expect("bad output type for cast");
                 match (cast_in, cast_out) {
@@ -601,7 +601,7 @@ impl<'tcx> Validator<'_, 'tcx> {
             }
 
             Rvalue::BinaryOp(op, ref lhs, _) if self.const_kind.is_none() => {
-                if let ty::RawPtr(_) | ty::FnPtr(..) = lhs.ty(self.body.body(), self.tcx).kind {
+                if let ty::RawPtr(_) | ty::FnPtr(..) = lhs.ty(&*self.body, self.tcx).kind {
                     assert!(op == BinOp::Eq || op == BinOp::Ne ||
                             op == BinOp::Le || op == BinOp::Lt ||
                             op == BinOp::Ge || op == BinOp::Gt ||
@@ -636,7 +636,7 @@ impl<'tcx> Validator<'_, 'tcx> {
 
             Rvalue::Ref(_, kind, place) => {
                 if let BorrowKind::Mut { .. } = kind {
-                    let ty = place.ty(self.body.body(), self.tcx).ty;
+                    let ty = place.ty(&*self.body, self.tcx).ty;
 
                     // In theory, any zero-sized value could be borrowed
                     // mutably without consequences. However, only &mut []
@@ -663,7 +663,7 @@ impl<'tcx> Validator<'_, 'tcx> {
                 let mut place = place.as_ref();
                 if let [proj_base @ .., ProjectionElem::Deref] = &place.projection {
                     let base_ty =
-                        Place::ty_from(&place.base, proj_base, self.body.body(), self.tcx).ty;
+                        Place::ty_from(&place.base, proj_base, &*self.body, self.tcx).ty;
                     if let ty::Ref(..) = base_ty.kind {
                         place = PlaceRef {
                             base: &place.base,
@@ -689,7 +689,7 @@ impl<'tcx> Validator<'_, 'tcx> {
                     while let [proj_base @ .., elem] = place_projection {
                         // FIXME(eddyb) this is probably excessive, with
                         // the exception of `union` member accesses.
-                        let ty = Place::ty_from(place.base, proj_base, self.body.body(), self.tcx)
+                        let ty = Place::ty_from(place.base, proj_base, &*self.body, self.tcx)
                             .projection_ty(self.tcx, elem)
                             .ty;
                         if ty.is_freeze(self.tcx, self.param_env, DUMMY_SP) {
@@ -722,7 +722,7 @@ impl<'tcx> Validator<'_, 'tcx> {
         callee: &Operand<'tcx>,
         args: &[Operand<'tcx>],
     ) -> Result<(), Unpromotable> {
-        let fn_ty = callee.ty(self.body.body(), self.tcx);
+        let fn_ty = callee.ty(&*self.body, self.tcx);
 
         if !self.explicit && self.const_kind.is_none() {
             if let ty::FnDef(def_id, _) = fn_ty.kind {
