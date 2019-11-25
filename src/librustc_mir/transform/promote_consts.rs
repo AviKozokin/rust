@@ -68,7 +68,8 @@ impl<'tcx> MirPass<'tcx> for PromoteTemps<'tcx> {
         let mut rpo = traversal::reverse_postorder(body);
         let (temps, all_candidates) = collect_temps_and_candidates(tcx, body, &mut rpo);
 
-        let promotable_candidates = validate_candidates(tcx, read_only, def_id, &temps, &all_candidates);
+        let promotable_candidates
+            = validate_candidates(tcx, read_only, def_id, &temps, &all_candidates);
 
         // For now, lifetime extension is done in `const` and `static`s without creating promoted
         // MIR fragments by removing `Drop` and `StorageDead` for each referent. However, this will
