@@ -1,6 +1,6 @@
 use rustc::hir;
 use rustc::hir::Node;
-use rustc::mir::{self, Body, ClearCrossCrate, Local, LocalInfo, Location};
+use rustc::mir::{self, ClearCrossCrate, Local, LocalInfo, Location, ReadOnlyBodyCache};
 use rustc::mir::{Mutability, Place, PlaceRef, PlaceBase, ProjectionElem};
 use rustc::ty::{self, Ty, TyCtxt};
 use rustc_index::vec::Idx;
@@ -62,8 +62,12 @@ impl<'a, 'tcx> MirBorrowckCtxt<'a, 'tcx> {
                 projection: [proj_base @ .., ProjectionElem::Field(upvar_index, _)],
             } => {
                 debug_assert!(is_closure_or_generator(
-                    Place::ty_from(&the_place_err.base, proj_base, self.body, self.infcx.tcx).ty
-                ));
+                    Place::ty_from(
+                        &the_place_err.base,
+                        proj_base,
+                        &*self.body,
+                        self.infcx.tcx
+                    ).ty));
 
                 item_msg = format!("`{}`", access_place_desc.unwrap());
                 if self.is_upvar_field_projection(access_place.as_ref()).is_some() {
@@ -112,7 +116,7 @@ impl<'a, 'tcx> MirBorrowckCtxt<'a, 'tcx> {
                         Place::ty_from(
                             the_place_err.base,
                             the_place_err.projection,
-                            self.body,
+                            &*self.body,
                             self.infcx.tcx
                         )
                         .ty
@@ -226,7 +230,7 @@ impl<'a, 'tcx> MirBorrowckCtxt<'a, 'tcx> {
 
                 if let Some((span, message)) = annotate_struct_field(
                     self.infcx.tcx,
-                    Place::ty_from(base, proj_base, self.body, self.infcx.tcx).ty,
+                    Place::ty_from(base, proj_base, &*self.body, self.infcx.tcx).ty,
                     field,
                 ) {
                     err.span_suggestion(
@@ -301,7 +305,7 @@ impl<'a, 'tcx> MirBorrowckCtxt<'a, 'tcx> {
                 projection: [proj_base @ .., ProjectionElem::Field(upvar_index, _)],
             } => {
                 debug_assert!(is_closure_or_generator(
-                    Place::ty_from(base, proj_base, self.body, self.infcx.tcx).ty
+                    Place::ty_from(base, proj_base, &*self.body, self.infcx.tcx).ty
                 ));
 
                 err.span_label(span, format!("cannot {ACT}", ACT = act));
@@ -530,7 +534,7 @@ fn suggest_ampmut_self<'tcx>(
 // by trying (3.), then (2.) and finally falling back on (1.).
 fn suggest_ampmut<'tcx>(
     tcx: TyCtxt<'tcx>,
-    body: &Body<'tcx>,
+    body: ReadOnlyBodyCache<'_, 'tcx>,
     local: Local,
     local_decl: &mir::LocalDecl<'tcx>,
     opt_ty_info: Option<Span>,

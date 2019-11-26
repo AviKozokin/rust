@@ -255,8 +255,8 @@ crate struct LazyPerDefTables<'tcx> {
     // Also, as an optimization, a missing entry indicates an empty `&[]`.
     inferred_outlives: Lazy!(PerDefTable<Lazy!(&'tcx [(ty::Predicate<'tcx>, Span)])>),
     super_predicates: Lazy!(PerDefTable<Lazy!(ty::GenericPredicates<'tcx>)>),
-    mir: Lazy!(PerDefTable<Lazy!(mir::Body<'tcx>)>),
-    promoted_mir: Lazy!(PerDefTable<Lazy!(IndexVec<mir::Promoted, mir::Body<'tcx>>)>),
+    mir: Lazy!(PerDefTable<Lazy!(mir::BodyCache<'tcx>)>),
+    promoted_mir: Lazy!(PerDefTable<Lazy!(IndexVec<mir::Promoted, mir::BodyCache<'tcx>>)>),
 }
 
 #[derive(Copy, Clone, RustcEncodable, RustcDecodable)]

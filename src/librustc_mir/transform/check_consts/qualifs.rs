@@ -50,7 +50,7 @@ pub trait Qualif {
             });
             let qualif = base_qualif && Self::in_any_value_of_ty(
                 cx,
-                Place::ty_from(place.base, proj_base, cx.body, cx.tcx)
+                Place::ty_from(place.base, proj_base, &*cx.body, cx.tcx)
                     .projection_ty(cx.tcx, elem)
                     .ty,
             );
@@ -154,7 +154,7 @@ pub trait Qualif {
                 // Special-case reborrows to be more like a copy of the reference.
                 if let &[ref proj_base @ .., elem] = place.projection.as_ref() {
                     if ProjectionElem::Deref == elem {
-                        let base_ty = Place::ty_from(&place.base, proj_base, cx.body, cx.tcx).ty;
+                        let base_ty = Place::ty_from(&place.base, proj_base, &*cx.body, cx.tcx).ty;
                         if let ty::Ref(..) = base_ty.kind {
                             return Self::in_place(cx, per_local, PlaceRef {
                                 base: &place.base,
@@ -221,7 +221,7 @@ impl Qualif for HasMutInterior {
             // allowed in constants (and the `Checker` will error), and/or it
             // won't be promoted, due to `&mut ...` or interior mutability.
             Rvalue::Ref(_, kind, ref place) => {
-                let ty = place.ty(cx.body, cx.tcx).ty;
+                let ty = place.ty(&*cx.body, cx.tcx).ty;
 
                 if let BorrowKind::Mut { .. } = kind {
                     // In theory, any zero-sized value could be borrowed
@@ -248,7 +248,7 @@ impl Qualif for HasMutInterior {
             Rvalue::Aggregate(ref kind, _) => {
                 if let AggregateKind::Adt(def, ..) = **kind {
                     if Some(def.did) == cx.tcx.lang_items().unsafe_cell_type() {
-                        let ty = rvalue.ty(cx.body, cx.tcx);
+                        let ty = rvalue.ty(&*cx.body, cx.tcx);
                         assert_eq!(Self::in_any_value_of_ty(cx, ty), true);
                         return true;
                     }

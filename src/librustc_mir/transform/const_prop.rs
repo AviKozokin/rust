@@ -7,9 +7,10 @@ use std::cell::Cell;
 use rustc::hir::def::DefKind;
 use rustc::hir::def_id::DefId;
 use rustc::mir::{
-    AggregateKind, Constant, Location, Place, PlaceBase, Body, Operand, Rvalue, Local, UnOp,
-    StatementKind, Statement, LocalKind, TerminatorKind, Terminator,  ClearCrossCrate, SourceInfo,
-    BinOp, SourceScope, SourceScopeLocalData, LocalDecl, BasicBlock, RETURN_PLACE,
+    AggregateKind, Constant, Location, Place, PlaceBase, Body, BodyCache, Operand, Local, UnOp,
+    Rvalue, StatementKind, Statement, LocalKind, TerminatorKind, Terminator,  ClearCrossCrate,
+    SourceInfo, BinOp, SourceScope, SourceScopeLocalData, LocalDecl, BasicBlock, ReadOnlyBodyCache,
+    read_only, RETURN_PLACE
 };
 use rustc::mir::visit::{
     Visitor, PlaceContext, MutatingUseContext, MutVisitor, NonMutatingUseContext,
@@ -41,7 +42,9 @@ const MAX_ALLOC_LIMIT: u64 = 1024;
 pub struct ConstProp;
 
 impl<'tcx> MirPass<'tcx> for ConstProp {
-    fn run_pass(&self, tcx: TyCtxt<'tcx>, source: MirSource<'tcx>, body: &mut Body<'tcx>) {
+    fn run_pass(
+        &self, tcx: TyCtxt<'tcx>, source: MirSource<'tcx>, body: &mut BodyCache<'tcx>
+    ) {
         // will be evaluated by miri and produce its errors there
         if source.promoted.is_some() {
             return;
@@ -99,7 +102,7 @@ impl<'tcx> MirPass<'tcx> for ConstProp {
         // That would require an uniform one-def no-mutation analysis
         // and RPO (or recursing when needing the value of a local).
         let mut optimization_finder = ConstPropagator::new(
-            body,
+            read_only!(body),
             dummy_body,
             source_scope_local_data,
             tcx,
@@ -298,7 +301,7 @@ impl<'mir, 'tcx> HasTyCtxt<'tcx> for ConstPropagator<'mir, 'tcx> {
 
 impl<'mir, 'tcx> ConstPropagator<'mir, 'tcx> {
     fn new(
-        body: &Body<'tcx>,
+        body: ReadOnlyBodyCache<'_, 'tcx>,
         dummy_body: &'mir Body<'tcx>,
         source_scope_local_data: ClearCrossCrate<IndexVec<SourceScope, SourceScopeLocalData>>,
         tcx: TyCtxt<'tcx>,
@@ -674,7 +677,7 @@ struct CanConstProp {
 
 impl CanConstProp {
     /// returns true if `local` can be propagated
-    fn check(body: &Body<'_>) -> IndexVec<Local, bool> {
+    fn check(body: ReadOnlyBodyCache<'_, '_>) -> IndexVec<Local, bool> {
         let mut cpv = CanConstProp {
             can_const_prop: IndexVec::from_elem(true, &body.local_decls),
             found_assignment: IndexVec::from_elem(false, &body.local_decls),

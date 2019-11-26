@@ -68,9 +68,10 @@ impl<Bx: BuilderMethods<'a, 'tcx>> LocalAnalyzer<'mir, 'a, 'tcx, Bx> {
     fn new(fx: &'mir FunctionCx<'a, 'tcx, Bx>) -> Self {
         let invalid_location =
             mir::BasicBlock::new(fx.mir.basic_blocks().len()).start_location();
+        let dominators = fx.mir.dominators();
         let mut analyzer = LocalAnalyzer {
             fx,
-            dominators: fx.mir.dominators(),
+            dominators,
             non_ssa_locals: BitSet::new_empty(fx.mir.local_decls.len()),
             first_assignment: IndexVec::from_elem(invalid_location, &fx.mir.local_decls)
         };
@@ -122,7 +123,7 @@ impl<Bx: BuilderMethods<'a, 'tcx>> LocalAnalyzer<'mir, 'a, 'tcx, Bx> {
             };
             if is_consume {
                 let base_ty =
-                    mir::Place::ty_from(place_ref.base, proj_base, self.fx.mir, cx.tcx());
+                    mir::Place::ty_from(place_ref.base, proj_base, &*self.fx.mir, cx.tcx());
                 let base_ty = self.fx.monomorphize(&base_ty);
 
                 // ZSTs don't require any actual memory access.
